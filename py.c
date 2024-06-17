@@ -129,77 +129,6 @@ pytokenizer_encode(PyRWKVTokenizer *self, PyObject *const *args, Py_ssize_t narg
     const char* bytes = PyUnicode_AsUTF8AndSize(args[0], &bytes_size);
     
     RWKVS8 data = { .ptr = (const U8*)bytes, .len = bytes_size };
-    
-#if 0
-    size_t required_len;
-    if (!rwkv_tokenize(&self->tokenizer, data, 0, &required_len)) {
-        return NULL;
-    }
-    
-    PyObject* list = PyList_New(required_len);
-    if (!list) {
-        return NULL;
-    }
-    
-    // faster than if 0
-#if 1
-    // NOTE(mrsteyk): unfortunate code duplication, but such is C life.
-    size_t counter = 0;
-    size_t offset = 0;
-    size_t skip = 0;
-    token_t token = 0;
-    while (rwkv_trie_find_longest(self->tokenizer.root, bytes + offset, bytes_size - offset, &token, &skip)) {
-        // NOTE(mrsteyk): this should never happen!
-        if (counter >= required_len) {
-            PyErr_SetString(PyExc_AssertionError, "UNREACHABLE PATH IN ENCODE: SOMEHOW RAN OUT OF INDEXES");
-            Py_DECREF(list);
-            return NULL;
-        }
-        
-        PyObject *integer = PyLong_FromLong(token);
-        if (!integer) {
-            Py_DECREF(list);
-            return NULL;
-        }
-        PyList_SET_ITEM(list, counter, integer);
-        
-        counter++;
-        
-        if ((bytes_size - offset) <= skip) {
-            return list;
-        }
-        
-        offset += skip;
-    }
-    
-    
-    // NOTE(mrsteyk): unreachable
-    PyErr_SetString(PyExc_AssertionError, "UNREACHABLE PATH IN ENCODE");
-    Py_DECREF(list);
-    return NULL;
-#else
-    token_t* out = malloc(sizeof(*out) * required_len);
-    if (!rwkv_tokenize(&self->tokenizer, data, out, &required_len)) {
-        PyErr_SetString(PyExc_AssertionError, "Tokenizer error!");
-        Py_DECREF(list);
-        return NULL;
-    }
-    
-    for (size_t i = 0; i < required_len; i++) {
-        PyObject *integer = PyLong_FromLong(out[i]);
-        if (!integer) {
-            free(out);
-            Py_DECREF(list);
-            return NULL;
-        }
-        PyList_SET_ITEM(list, i, integer);
-        
-    }
-    
-    free(out);
-    return list;
-#endif
-#else
     size_t counter = 0;
     size_t offset = 0;
     size_t skip = 0;
@@ -208,44 +137,22 @@ pytokenizer_encode(PyRWKVTokenizer *self, PyObject *const *args, Py_ssize_t narg
     size_t out_len = 64;
     token_t* out = malloc(sizeof(*out)*out_len);
     
-    //LARGE_INTEGER start, end, freq;
-    //QueryPerformanceFrequency(&freq);
-    //QueryPerformanceCounter(&start);
-    //while ((bytes_size - offset) && rwkv_trie_find_longest(self->tokenizer.root, bytes + offset, bytes_size - offset, &token, &skip)) {
     const RWKVTrie** root = self->tokenizer.root;
     while (bytes_size - offset) {
-        //QueryPerformanceCounter(&end);
-        //printf("find longest took: %llu ticks\n", end.QuadPart-start.QuadPart);
-        
         rwkv_trie_find_longest(root, bytes + offset, bytes_size - offset, &token, &skip);
         
         if (counter == out_len) {
-            //QueryPerformanceCounter(&start);
-            
             out_len *= 2;
             U32* out_new = realloc(out, sizeof(U32)*out_len);
-            /*if (!out_new) {
-                free(out);
-                PyErr_SetString(PyExc_MemoryError, "Ran out of memory for out token array!");
-                return NULL;
-            } // */
             out = out_new;
-            
-            //QueryPerformanceCounter(&end);
-            //printf("Grow took: %llu ticks\n", end.QuadPart-start.QuadPart);
         }
         
         out[counter] = token;
         counter++;
         
         offset += skip;
-        
-        //QueryPerformanceCounter(&start);
     }
-    //QueryPerformanceCounter(&end);
-    //printf("Encoding tooK %llu ticks | %.5f\n", end.QuadPart - start.QuadPart, (end.QuadPart - start.QuadPart)/(float)freq.QuadPart);
     
-    //QueryPerformanceCounter(&start);
     PyObject* list = PyList_New(counter);
     if (!list) {
         return NULL;
@@ -259,12 +166,9 @@ pytokenizer_encode(PyRWKVTokenizer *self, PyObject *const *args, Py_ssize_t narg
         }
         PyList_SET_ITEM(list, i, integer);
     }
-    //QueryPerformanceCounter(&end);
-    //printf("Putting into array took: %llu ticks | %.5f\n", end.QuadPart - start.QuadPart, (end.QuadPart - start.QuadPart)/(float)freq.QuadPart);
     
     free(out);
     return list;
-#endif
 }
 
 static PyObject*

@@ -18,9 +18,6 @@ struct RWKVS8 {
 typedef struct RWKVTrie RWKVTrie;
 struct RWKVTrie {
     U32 id;
-    // U8 b; // I decided against this.
-    //RWKVS8 s;
-    //
     const RWKVTrie* next[256];
 };
 
@@ -52,32 +49,6 @@ rwkv_trie_find_longest(const RWKVTrie** root, const U8* ptr, size_t available, t
     if (!curr) {
         return 0;
     }
-    
-#if 0
-    //U32 max_t = curr->id;
-    const RWKVTrie* max_n = curr;
-    size_t max_s = curr->s.len;
-    
-    for (size_t i = 1; i < available; i++) {
-        if (!curr->next[ptr[i]]) {
-            break;
-        }
-        
-        curr = curr->next[ptr[i]];
-        
-        if (curr->s.len) {
-            max_n = curr;
-            max_s = curr->s.len;
-        }
-    }
-    
-    if (ptoken)
-        *ptoken = max_n->id;
-    if (pskip)
-        *pskip = max_s;
-    return 1;
-#else
-    
     const RWKVTrie* old_node = curr;
     size_t old_index = 0;
     size_t i;
@@ -109,7 +80,6 @@ rwkv_trie_find_longest(const RWKVTrie** root, const U8* ptr, size_t available, t
     }
     
     return 1;
-#endif
 }
 
 static void
@@ -154,7 +124,6 @@ rwkv_tokenizer_add(RWKVTokenizer* tokenizer, RWKVS8 token, token_t id) {
     }
     
     t->id = id;
-    //t->s = token;
     
     return 1;
 }
