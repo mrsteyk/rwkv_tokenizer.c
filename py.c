@@ -143,7 +143,7 @@ pytokenizer_encode(PyRWKVTokenizer *self, PyObject *const *args, Py_ssize_t narg
         
         if (counter == out_len) {
             out_len *= 2;
-            U32* out_new = realloc(out, sizeof(U32)*out_len);
+            token_t* out_new = realloc(out, sizeof(*out)*out_len);
             out = out_new;
         }
         
